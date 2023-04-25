@@ -9,7 +9,6 @@
 
 .layui-icon {
     margin-right: 8px;
-    margin-left: 20px;
 }
 
 iframe {
@@ -19,6 +18,10 @@ iframe {
 
 .layui-body {
     overflow: hidden;
+}
+
+a {
+    transition: none !important;
 }
 
 .userinfo {
@@ -33,20 +36,16 @@ iframe {
     border-bottom: 1px solid #282b33;
 }
 
-.layui-nav-img {
-    width: 40px;
-    height: 40px;
-}
-
-.text-avatar {
+.text-avater {
     display: inline-block;
     width: 40px;
     height: 40px;
-    line-height: 40px;
+    background-color: #009688;
     border-radius: 50%;
+    line-height: 40px;
+    text-align: center;
     font-size: 20px;
     color: #fff;
-    background-color: #009688;
     position: relative;
     top: 4px;
     margin-right: 10px;

@@ -1,23 +1,25 @@
 $(function () {
-    var id = getUrlParam('id')
+    let layer = layui.layer
+    let form = layui.form
 
     initCate()
-    initEditor() // 富文本编辑器的生成函数调用
-
+    //  初始化富文本编辑器
+    initEditor()
     function initCate() {
         $.ajax({
             method: 'GET',
-            // bugfix:这里url前缀定义的不好，重新定义，和/my/article区别
-            url: '/my/artcate/cates',
+            url: '/my/article/cates',
             success: function (res) {
+                console.log(res);
                 if (res.status !== 0) {
-                    return layui.layer.msg(res.msg)
+                    return layer.msg('初始化文章分类失败!')
                 }
-
-                var htmlStr = template('tpl-select', res)
-                $('[name=cate_id]').html(htmlStr)
-
-                layui.form.render()
+                // 调用模板引擎,渲染分类的下拉菜单
+                let htmlStr = template('tpl-cate', res)
+                $('[name=cate_id]').html(htmlStr);
+                console.log(res);
+                // 一定要记得调用 form.render()方法
+                form.render();
             }
         })
     }
@@ -36,98 +38,83 @@ $(function () {
     // 1.3 创建裁剪区域
     $image.cropper(options);
 
-    /* 绑定选择封面按钮 和 上传文件表单控件 */
-    $('#btnChooseImage').on('click', function (e) {
-        $('#coverFile').trigger('click')
+
+    // 为选择封面的按钮,绑定点击事件处理函数
+    $('#btnChooseImage').on('click', function () {
+        $('#coverFile').click();
     })
 
-    /* 更换裁剪图片 */
     $('#coverFile').on('change', function (e) {
-        var files = e.target.files
-
+        // 获取到文件的列表数组
+        let files = e.target.files;
+        // 判断用户是否选择了文件
         if (files.length === 0) {
-            return layui.layer.msg('请选择封面图片')
+            return
         }
-
-        var newFileURL = URL.createObjectURL(files[0])
-
-        $image.cropper('destroy').attr('src', newFileURL).cropper(options);
+        // 根据文件,创建对应的 URL 地址
+        let newImgURL = URL.createObjectURL(files[0]);
+        // 为裁剪区域重新设置图片
+        $image
+            .cropper('destroy') //销毁就得裁剪区域
+            .attr('src', newImgURL)//重新设置图片路径
+            .cropper(options)//重新初始化裁剪区域
     })
 
-    var art_state = '已发布'
 
-    $('#btnSave').on('click', function (e) {
+    // 定义文章的发布状态
+    let art_state = '已发布';
+
+    // 为存为草稿按钮,绑定点击事件处理函数
+    $('#btnSave2').on('click', function () {
         art_state = '草稿'
     })
 
+
+    // 为表单绑定submit 提交事件
     $('#form-pub').on('submit', function (e) {
-        e.preventDefault()
+        // 1.阻止表达你的默认提交行为
+        e.preventDefault();
+        // 2.基于 form 表单, 快速创建一个 FromData 对象
+        let fd = new FormData($(this)[0])//[0]表示转换为原生的 dom 元素对象
+        fd.append('state', art_state);
+        // 4.将封面裁剪过后的图片,输出为一个文件对象
+        $image
+            // 通过.cropper('getCroppedCanvas') 方法获得的画布对象可以被认为是一个裁剪后的图像副本，你可以基于这个副本进行各种操作，以满足你的需求。
+            .cropper('getCroppedCanvas', {
+                // 创建一个 Canvas 画布
+                width: 400,
+                height: 280
+            })
+            .toBlob(function (blob) {
+                // 将 Canvas 画布上的内容,转化为文件对象
+                // 得到文件对象后,进行后续的操作
+                // 5.将文件对象,存储到 fd 中
+                fd.append('conver_img', blob);
+                // 发起 ajax 数据请求
+                publishArticle(fd);
+            })
+        // FormData 对象并不是一个普通的对象，而是一种特殊的对象类型。FormData 对象用于封装表单数据，以便于通过 AJAX 提交表单数据。它提供了一些特殊的方法和属性来处理表单数据。
+        // 所以FormData 具有 forEach 方法
 
-        var fd = new FormData($(this)[0])
-        fd.append('state', art_state)
-
-        // 将裁剪图片输出为文件
-        $image.cropper('getCroppedCanvas', {
-            // 创建一个画布
-            width: 400,
-            height: 200
-        }).toBlob(function (blob) { // 将裁剪图片变为文件blob后的回调函数
-            fd.append('cover_img', blob)
-
-            if (id) {
-                fd.append('id', id)
-                publishArticle(fd, '/my/article/edit')
-            } else {
-                publishArticle(fd, '/my/article/add')
-            }
-
-        })
-
-
+        // 定义一个发布文章的方法
+        function publishArticle(fd) {
+            $.ajax({
+                method: 'POST',
+                url: '/my/article/addcates',
+                data: fd,
+                // 注意:如果想服务器提交的是 FromData 格式的数据,
+                // 必须添加以下两个配置项
+                contentType: false,
+                processData: false,
+                success: function (res) {
+                    if (res.status !== 0) {
+                        return layer.msg('发布文章失败!')
+                    }
+                    layer.msg('发布文章成功!');
+                    // 发布文章成功后,跳转到文章列表页面
+                    location.href = '/article/art_list.html'
+                }
+            })
+        }
     })
-
-    function publishArticle(fd, url) {
-        $.ajax({
-            method: 'POST',
-            url: url,
-            data: fd,
-            /* 注意：如果向服务器发生FormDate数据格式的ajax请求，必须要带
-                contentType和processData属性，且属性值一定设置为false
-            */
-            contentType: false,
-            processData: false,
-            success: function (res) {
-                layui.layer.msg(res.msg)
-                if (res.status !== 0) {
-                    return
-                }
-                window.parent.setNavSelected('#article-list', '#article-pub')
-                console.log(window.parent);
-                location.href = '/article/art_list.html'
-            }
-        })
-    }
-
-    // 用文章旧数据渲染页面
-    if (id) {
-        $.ajax({
-            method: 'GET',
-            url: `/my/article/${id}`,
-            success: function (res) {
-                if (res.status !== 0) {
-                    return layui.layer.msg(res.msg)
-                }
-                layui.form.val('formPublish', res.data)
-                $image.cropper('destroy').attr('src', 'http://127.0.0.1:3007' + res.data.cover_img).cropper(options);
-            }
-        })
-    }
-
-    //获取url中的参数
-    function getUrlParam(name) {
-        var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)"); //构造一个含有目标参数的正则表达式对象
-        var r = window.location.search.substr(1).match(reg); //匹配目标参数
-        if (r != null) return unescape(r[2]);
-        return null; //返回参数值
-    }
 })

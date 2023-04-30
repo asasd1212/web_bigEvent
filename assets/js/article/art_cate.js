@@ -1,104 +1,112 @@
 $(function () {
+    let layer = layui.layer
+    let form = layui.form
+    initArtCateList();
+
+    // 获取文章分分类的列表
     function initArtCateList() {
         $.ajax({
             method: 'GET',
-            // bugfix:这里url前缀定义的不好，重新定义，和/my/article区别
-            url: '/my/artcate/cates',
+            url: '/my/article/cates',
             success: function (res) {
-                if (res.status !== 0) {
-                    return layui.layer.msg(res.msg)
-                }
-
+                console.log(res);
                 var htmlStr = template('tpl-table', res)
-
                 $('tbody').html(htmlStr)
             }
         })
     }
 
-    initArtCateList()
-
-    var indexAdd = null
-    $('.btnAddCate').on('click', function () {
-        indexAdd = layui.layer.open({
+    let indexAdd = null
+    $('#btnAddCate').on('click', function () {
+        indexAdd = layer.open({
             type: 1,
+            area: ['500px', '250px'],
             title: '添加文章分类',
-            content: $('#dialog-add').html(),
-            area: ['500px', '250px']
-        })
+            content: $('#dialog-add').html()
+        });
+
     })
 
-    $('body').on('submit', '#form-add', function (e) {
-        e.preventDefault()
-
+    // 通过代理的形式,为 form-add 表单编订 submit 事件
+    $('body').on('submit', '.form-add', function (e) {
+        e.preventDefault();
+        console.log('ok');
         $.ajax({
             method: 'POST',
-            url: '/my/artcate/addcates',
+            url: '/my/article/addcates',
             data: $(this).serialize(),
             success: function (res) {
+                console.log(res);
                 if (res.status !== 0) {
-                    return layui.layer.msg(res.msg)
+                    return layer.msg('新增分类失败')
                 }
-                layui.layer.close(indexAdd)
-                initArtCateList()
+                initArtCateList();
+                layer.msg('新增分类成功')
+                layer.close(indexAdd)
             }
         })
     })
-
-    var indexEdit = null
-    $('tbody').on('click', '.btnEditCate', function (e) {
-        indexEdit = layui.layer.open({
+    let indexEdit = null;
+    $('tbody').on('click', '.btn-edit', function (e) {
+        console.log('ok');
+        indexEdit = layer.open({
             type: 1,
+            area: ['500px', '250px'],
             title: '修改文章分类',
-            content: $('#dialog-edit').html(),
-            area: ['500px', '250px']
-        })
+            content: $('#dialog-edit').html()
+        });
 
-        var values = $(this).parent().siblings('td')
-        $('#form-edit [name=name]').attr('value', values[0].innerHTML)
-        $('#form-edit [name=alias]').attr('value', values[1].innerHTML)
-        $('#form-edit [name=id]').attr('value', $(this).attr('data-id'))
-    })
-
-    $('body').on('submit', '#form-edit', function (e) {
-        e.preventDefault()
-
+        let id = $(this).attr('data-id');
+        console.log(id);
+        // 发起请求获取对应分类的数据
         $.ajax({
-            method: 'POST',
-            url: '/my/artcate/updatecate',
-            data: $(this).serialize(),
+            method: 'GET',
+            url: '/my/article/cates/' + id,
             success: function (res) {
-                if (res.status !== 0) {
-                    return layui.layer.msg(res.msg)
-                }
+                console.log(res);
+                form.val('form-edit', res.data)
 
-                layui.layer.close(indexEdit)
-                initArtCateList()
             }
         })
     })
 
-    $('tbody').on('click', '.btnDelCate', function (e) {
-        var id = $(this).attr('data-id')
+    // 通过代理的形式,为修改分类的表单绑定 submit 事件
+    $('body').on('submit', '#form-edit', function (e) {
+        e.preventDefault();
+        $.ajax({
+            method: 'POST',
+            url: '/my/article/updatecate',
+            success: function (res) {
+                if (res.status !== 0) {
+                    return layer.msg('更新分类数据失败!');
+                }
+                layer.msg('更新分类数据成功!');
+                layer.close(indexEdit);
+                initArtCateList();
+            }
+        })
+    })
 
-        layui.layer.confirm('确认删除?', { icon: 3, title: '提示' }, function (index) {
+    // 通过代理的形式为删除按钮绑定点击事件
+    $('tbody').on('click', '.btn-delete', function () {
+        console.log('ok');
+        let id = $(this).attr('data-id');
+        // 提示用户是否要删除
+        layer.confirm('确认删除?', { icon: 3, title: '提示' }, function (index) {
             $.ajax({
                 method: 'GET',
-                url: `/my/artcate/deletecate/${id}`,
+                url: '/my/article/deletecate/' + id,
                 success: function (res) {
-                    layui.layer.msg(res.msg)
-
                     if (res.status !== 0) {
-                        return
+                        return layer.msg('删除失败')
                     }
-
-                    layui.layer.close(index)
-                    initArtCateList()
+                    layer.msg('删除成功')
+                    layer.close(index);
+                    initArtCateList();
                 }
             })
 
+
         });
-
-
     })
 })
